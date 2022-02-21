@@ -1,0 +1,6 @@
+HOUS 01    0 0 0 0
+HOUS 02    0 0 0 0
+HOUS 03    0 0 0 0
+HOUS 04    0 0 0 0
+HOUS 05    0 0 0 0
+HOUS 06    0 0 0 0
