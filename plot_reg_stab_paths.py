@@ -1,8 +1,10 @@
 import os
 import subprocess
+from cProfile import label
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import style
 from sklearn.linear_model import lars_path
 
 # Global variables
@@ -154,15 +156,53 @@ def main(trial):
         eps=1e-6,
     )
 
+    # Multiply lambdas by nscans due to LARS implementation in scikit learn
+    lambdas *= nscans
+
+    #  Compute residuals for model selection criteria (BIC and AIC)
+    L2res = np.sum(
+        (np.repeat(y[:, np.newaxis], len(lambdas), axis=-1) - np.dot(hrf, coef_path)) ** 2, axis=0
+    )
+    # BIC regularization curve
+    bic = nscans * np.log(L2res) + np.log(nscans) * np.count_nonzero(coef_path, axis=0)
+    # AIC regularization curve
+    aic = nscans * np.log(L2res) + 2 * np.count_nonzero(coef_path, axis=0)
+
+    # Find the optimal lambdas for each selection criteria (BIC, AIC)
+    bic_idx = np.argmin(bic)
+    aic_idx = np.argmin(aic)
+
     # Plot regularization path on the left subplot of 2
     print("Plotting regularization path...")
     fig, ax = plt.subplots(1, 2, figsize=(15, 5))
     ax[0].margins(x=0)
-    ax[0].plot(coef_path[non_onset, :].T, color="#357FA6", linewidth=0.5)
-    ax[0].plot(coef_path[onsets, :].T, color="#F28B66", linewidth=2)
+    ax[0].plot(lambdas, coef_path[non_onset, :].T, color="#5ABEF2", linewidth=0.5)
+    ax[0].plot(lambdas, coef_path[onsets, :].T, color="#357FA6", linewidth=2)
+    # Add vertical lines at the optimal lambdas for each selection criteria (BIC, AIC) and position them on top of the plot
+    ax[0].vlines(
+        x=lambdas[bic_idx],
+        ymin=np.min(coef_path),
+        ymax=np.max(coef_path),
+        color="#56A669",
+        linestyle="dashed",
+        label="BIC",
+        zorder=10000,
+    )
+    ax[0].vlines(
+        x=lambdas[aic_idx],
+        ymin=np.min(coef_path),
+        ymax=np.max(coef_path),
+        color="#F28B66",
+        linestyle="dashed",
+        label="AIC",
+        zorder=10000,
+    )
+    ax[0].invert_xaxis()
     ax[0].set_xlabel("λ")
     ax[0].set_ylabel("Amplitude")
     ax[0].set_title("Regularization path")
+    # Add legend on the upper left corner of the plot
+    ax[0].legend(loc="upper left")
     print("Regularization path plotted.")
 
     # Initialize lambdas and coef_path for stability selection with nsurr surrogates
@@ -201,7 +241,7 @@ def main(trial):
         )
 
         # Save lambda and coef_path for surrogate with zero padding to fit the shape of lambda_surr and coef_path_surr
-        lambdas_surr[surr_idx, : temp_lambda.shape[0]] = temp_lambda
+        lambdas_surr[surr_idx, : temp_lambda.shape[0]] = temp_lambda * nscans
         coef_path_surr[surr_idx, :, : temp_coef_path.shape[1]] = temp_coef_path
 
         print(f"Surrogate {surr_idx + 1} of {nsurr} calculated.")
@@ -215,8 +255,8 @@ def main(trial):
     # Plot stability path
     print("Plotting stability path...")
     ax[1].margins(x=0)
-    ax[1].plot(lambdas_merged, stability_path[non_onset, :].T, color="#357FA6", linewidth=0.5)
-    ax[1].plot(lambdas_merged, stability_path[onsets, :].T, color="#F28B66", linewidth=2)
+    ax[1].plot(lambdas_merged, stability_path[non_onset, :].T, color="#5ABEF2", linewidth=0.5)
+    ax[1].plot(lambdas_merged, stability_path[onsets, :].T, color="#357FA6", linewidth=2)
     # Flip x axis
     ax[1].invert_xaxis()
     ax[1].set_xlabel("λ")
