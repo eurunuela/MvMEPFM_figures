@@ -175,7 +175,7 @@ def main(trial):
     # Plot regularization path on the left subplot of 2
     print("Plotting regularization path...")
     fig, ax = plt.subplots(1, 2, figsize=(15, 5))
-    ax[0].margins(x=0)
+    ax[0].margins(x=0, y=0)
     ax[0].plot(lambdas, coef_path[non_onset, :].T, color="#5ABEF2", linewidth=0.5)
     ax[0].plot(lambdas, coef_path[onsets, :].T, color="#357FA6", linewidth=2)
     # Add vertical lines at the optimal lambdas for each selection criteria (BIC, AIC) and position them on top of the plot
